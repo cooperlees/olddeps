@@ -1,2 +1,2 @@
 # olddeps
-Just to check requirements against PyPI
+Take a requirements file and check against PyPI
