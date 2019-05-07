@@ -84,7 +84,6 @@ async def async_main(debug: bool, requirements_files: List[str]) -> int:
     file_paths = list(file_coros.keys())
     for idx, pkg_status in enumerate(all_pkg_status):
         print(f"Packages from {file_paths[idx]}")
-        print(pkg_status)  # COOPER
         for pkg in sorted(
             pkg_status, key=lambda x: x["released_days_ago"], reverse=True
         ):
