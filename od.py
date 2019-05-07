@@ -44,14 +44,17 @@ async def get_req_stats(
     async with aiohttp_session.get(pkg_url) as response:
         pkg_json = await response.json()
 
-    version_json = pkg_json["releases"][str(pkg_req.specs[0][1])].pop()
+    version = str(pkg_req.specs[0][1])
+    version_json = pkg_json["releases"][version].pop()
     # 2017-01-24T16:35:11
     upload_dt = datetime.strptime(version_json["upload_time"], "%Y-%m-%dT%H:%M:%S")
     dt_now = datetime.now()
     return {
         "name": pkg_req.name,
+        "latest": version == pkg_json["info"]["version"],
         "released_days_ago": (dt_now - upload_dt).days,
         "upload_time": version_json["upload_time"],
+        "version": version
     }
 
 
@@ -87,7 +90,10 @@ async def async_main(debug: bool, requirements_files: List[str]) -> int:
         for pkg in sorted(
             pkg_status, key=lambda x: x["released_days_ago"], reverse=True
         ):
-            print(f" - {pkg['name']}: {pkg['released_days_ago']}")
+            if pkg["latest"]:
+                print(f" - {pkg['name']} {pkg['version']}: LATEST")
+            else:
+                print(f" - {pkg['name']} {pkg['version']}: {pkg['released_days_ago']}")
 
     return 0
 
