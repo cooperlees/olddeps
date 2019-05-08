@@ -42,11 +42,19 @@ async def get_req_stats(
 ) -> Dict:
     pkg_url = url.format(pkg_req.name)
     async with aiohttp_session.get(pkg_url) as response:
-        pkg_json = await response.json()
+        try:
+            pkg_json = await response.json()
+        except aiohttp.client_exceptions.ContentTypeError:
+            LOG.error(f"{pkg_req} does not return JSON ...")
+            return {}
 
     version = str(pkg_req.specs[0][1])
-    version_json = pkg_json["releases"][version].pop()
-    # 2017-01-24T16:35:11
+    try:
+        version_json = pkg_json["releases"][version].pop()
+    except KeyError:
+        LOG.error(f"{pkg_req} version does not exist in JSON ...")
+        return {}
+
     upload_dt = datetime.strptime(version_json["upload_time"], "%Y-%m-%dT%H:%M:%S")
     dt_now = datetime.now()
     return {
@@ -54,7 +62,7 @@ async def get_req_stats(
         "latest": version == pkg_json["info"]["version"],
         "released_days_ago": (dt_now - upload_dt).days,
         "upload_time": version_json["upload_time"],
-        "version": version
+        "version": version,
     }
 
 
@@ -87,13 +95,17 @@ async def async_main(debug: bool, requirements_files: List[str]) -> int:
     file_paths = list(file_coros.keys())
     for idx, pkg_status in enumerate(all_pkg_status):
         print(f"Packages from {file_paths[idx]}")
+        clean_pkg_stats = [ps for ps in pkg_status if ps]
         for pkg in sorted(
-            pkg_status, key=lambda x: x["released_days_ago"], reverse=True
+            clean_pkg_stats, key=lambda x: x["released_days_ago"], reverse=True
         ):
+            if not pkg:
+                continue
+
             if pkg["latest"]:
                 print(f" - {pkg['name']} {pkg['version']}: LATEST")
             else:
-                print(f" - {pkg['name']} {pkg['version']}: {pkg['released_days_ago']}")
+                print(f" - {pkg['name']} {pkg['version']}: {pkg['released_days_ago']} days old")
 
     return 0
 
